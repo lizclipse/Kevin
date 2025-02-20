@@ -1,32 +1,32 @@
-@preconcurrency import DefaultCodable
 import Foundation
 import Logging
 
 struct ServerConfigModel: Codable, Sendable {
-  @Default<True>
-  var awake: Bool
-
-  @Default<Empty>
-  var ignoredChannels: [String]
+  var awake: Bool?
+  var ignoredChannels: [String]?
+  var foodWords: [String]?
 
   init() {}
   init(from: ServerConfig) {
     self.awake = from.awake
     self.ignoredChannels = Array(from.ignoredChannels)
+    self.foodWords = from.foodWords
   }
 }
 
 struct ServerConfig: Sendable {
   var awake: Bool
   var ignoredChannels: Set<String>
+  var foodWords: [String]
 
   init() {
-    self.awake = true
-    self.ignoredChannels = .init()
+    self.init(from: ServerConfigModel())
   }
+
   init(from: ServerConfigModel) {
-    self.awake = from.awake
-    self.ignoredChannels = Set(from.ignoredChannels)
+    self.awake = from.awake ?? true
+    self.ignoredChannels = Set(from.ignoredChannels ?? [])
+    self.foodWords = from.foodWords ?? defaultFoodWords
   }
 }
 
@@ -48,14 +48,41 @@ actor Store {
     }
   }
 
-  func get(_ server: String) -> ServerConfig {
-    return self.data[server] ?? ServerConfig()
+  func get(_ server: String) throws -> ServerConfig {
+    if let config = self.data[server] { return config }
+    let config = ServerConfig()
+    try self.set(server, config: config)
+    return config
   }
 
   func set(_ server: String, config: ServerConfig) throws {
     self.data[server] = config
+
     let store = self.data.mapValues { v in ServerConfigModel(from: v) }
     let encoder = JSONEncoder()
     try encoder.encode(store).write(to: self.path)
+  }
+}
+
+struct StoreError {
+  let message: String
+
+  init(_ message: String) {
+    self.message = message
+  }
+}
+
+extension StoreError: LocalizedError {
+  var errorDescription: String? { self.message }
+}
+
+extension [String] {
+  func createAnyMatcher() throws -> Regex<AnyRegexOutput>? {
+    guard !self.isEmpty else { return nil }
+    return try Regex(
+      self
+        .map { word in NSRegularExpression.escapedPattern(for: word) }
+        .joined(separator: "|")
+    )
   }
 }

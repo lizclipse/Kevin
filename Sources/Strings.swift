@@ -23,7 +23,7 @@ let asleepMsgs = [
 let wakeMsgs = [
   "_\\*zzzz !\\* squeak_",
   "_\\*slowly opens sleep-filled eyes\\*_",
-  "_\\*smell the nices treat and stirs awake\\*_",
+  "_\\*smell the nice treat and stirs awake\\*_",
 ]
 
 let awakeMsgs = [
@@ -58,7 +58,7 @@ let petMsgs = [
   "_squeak squeak..._",
 ]
 
-let foodWords = [
+let defaultFoodWords = [
   "apple",
   "broccoli",
   "cabbage",
@@ -82,4 +82,5 @@ let foodWords = [
   "🍎",
   "🥕",
   "🥦",
+  "🥬"
 ]

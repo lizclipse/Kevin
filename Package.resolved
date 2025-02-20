@@ -1,5 +1,5 @@
 {
-  "originHash" : "8e56c496c50d647a579647768f6dc18c0af135d02185f3ea6fcc5088c12656a8",
+  "originHash" : "2a99f8a1f246c08c398ff94eb98ae96c15077a8c84341dc5c0f028f125e847c5",
   "pins" : [
     {
       "identity" : "bitbytedata",
@@ -8,15 +8,6 @@
       "state" : {
         "revision" : "36df26fe4586b4f23d76cfd8b47076998343a2b2",
         "version" : "2.0.3"
-      }
-    },
-    {
-      "identity" : "defaultcodable",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/gonzalezreal/DefaultCodable.git",
-      "state" : {
-        "revision" : "b75cdb44b772cdd278ea0d029d3f079384b0d87d",
-        "version" : "1.2.1"
       }
     },
     {

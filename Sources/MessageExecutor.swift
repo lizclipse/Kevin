@@ -8,9 +8,6 @@ actor MessageExecutor {
   private let message: BotMessage
   private let ctx: ExecutorContext
 
-  private static let foodWordMatcher = try! Regex(foodWords.joined(separator: "|"))
-    .ignoresCase()
-
   init(message: BotMessage, context: ExecutorContext) {
     self.message = message
     self.ctx = context
@@ -74,8 +71,13 @@ actor MessageExecutor {
   private func handleSniff() async -> Bool {
     guard !self.ctx.config.ignoredChannels.contains(self.message.channelID) else { return false }
 
-    let found = await self.searchFor(re: MessageExecutor.foodWordMatcher, in: self.message)
-    if !found { return false }
+    do {
+      guard let matcher = try self.ctx.config.foodWords.createAnyMatcher() else { return false }
+      let found = await self.searchFor(re: matcher, in: self.message)
+      if !found { return false }
+    } catch {
+      self.logger.error("failed to create matcher: \(error.localizedDescription)")
+    }
 
     await self.makeSqueak()
     return true

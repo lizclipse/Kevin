@@ -4,6 +4,9 @@ import Foundation
 import Logging
 
 actor CommandExecutor {
+  private static let maxIgnoreChannels = 1000
+  private static let maxFoodWords = 1000
+
   private let logger = Logger(label: "CommandExecutor")
   private let interaction: CommandData
   private let ctx: ExecutorContext
@@ -94,7 +97,7 @@ extension CommandExecutor {
   func commandPp() async throws {
     guard await self.checkAwake() else { return }
 
-    if let _option = self.interaction.subOption(name: "rank") {
+    if self.interaction.subOption(name: "rank") != nil {
       try await self.interaction.reply("test lol") {
         ActionRow {
           Button("this does nothing", id: "test")
@@ -109,47 +112,151 @@ extension CommandExecutor {
 extension CommandExecutor {
   func commandConfig() async throws {
     if let group = self.interaction.subGroup(name: "channel") {
-      try await self.subcommandConfigChannel(command: group)
+      try await self.subcommandConfigChannel(group)
+    } else if let group = self.interaction.subGroup(name: "words") {
+      try await self.subcommandConfigWords(group)
     }
   }
 
-  private func subcommandConfigChannel(command: CommandData) async throws {
-    // config channel-ignore
-    if let option = command.subOption(name: "ignore") {
-      let channel: String = try option.getOption("channel")
+  private func subcommandConfigChannel(_ command: CommandData) async throws {
+    let getChannel = { (option: [String: CommandData.OptionData.Value]) in
+      let id: Snowflake = try option.getOption("channel")
+      let ref = self.interaction.resolved?.channels?[id]
+      return (id, ref)
+    }
 
-      guard !self.ctx.config.ignoredChannels.contains(channel) else {
-        try await self.interaction.reply("Channel \(channel) already in ignore list".codeBlocked())
+    ////////////////////////////////////////////////////
+    if let option = command.subOption(name: "ignore") {
+      let (channelID, channel) = try getChannel(option)
+      var config = self.ctx.config
+
+      guard !config.ignoredChannels.contains(channelID) else {
+        try await self.interaction.reply(
+          "Channel `\(channel?.name ?? channelID)` already in ignore list".codeBlocked(),
+          ephemeral: true
+        )
         return
       }
 
-      var config = self.ctx.config
-      if config.ignoredChannels.count > 1000 {
+      guard config.ignoredChannels.count < Self.maxIgnoreChannels else {
         throw ConfigCommandError("Maximum number of ignored channels added")
       }
-      config.ignoredChannels.insert(channel)
-      try await self.ctx.store.set(self.ctx.server, config: config)
 
-      try await self.interaction.reply("Added channel ID \(channel) to ignore list".codeBlocked())
-
-      // config channel-unignore
-    } else if let option = command.subOption(name: "unignore") {
-      let channel: String = try option.getOption("channel")
-
-      guard self.ctx.config.ignoredChannels.contains(channel) else {
-        try await self.interaction.reply("Channel \(channel) is not in ignore list".codeBlocked())
-        return
-      }
-
-      var config = self.ctx.config
-      if !config.ignoredChannels.contains(channel) {
-        throw ConfigCommandError("Channel was not ignored")
-      }
-      config.ignoredChannels.remove(channel)
+      config.ignoredChannels.insert(channelID)
       try await self.ctx.store.set(self.ctx.server, config: config)
 
       try await self.interaction.reply(
-        "Removed channel ID \(channel) from ignore list".codeBlocked())
+        "Added channel `\(channel?.name ?? channelID)` to ignore list".codeBlocked(),
+        ephemeral: true
+      )
+
+      ////////////////////////////////////////////////////
+    } else if let option = command.subOption(name: "unignore") {
+      let (channelID, channel) = try getChannel(option)
+      var config = self.ctx.config
+
+      guard config.ignoredChannels.contains(channelID) else {
+        try await self.interaction.reply(
+          "Channel `\(channel?.name ?? channelID)` is not in ignore list".codeBlocked(),
+          ephemeral: true
+        )
+        return
+      }
+
+      config.ignoredChannels.remove(channelID)
+      try await self.ctx.store.set(self.ctx.server, config: config)
+
+      try await self.interaction.reply(
+        "Removed channel `\(channel?.name ?? channelID)` from ignore list".codeBlocked(),
+        ephemeral: true
+      )
+
+      ////////////////////////////////////////////////////
+    } else if command.subOption(name: "list") != nil {
+      let names: [String]
+      if let guildID = self.interaction.guildID {
+        let channels = (try await self.ctx.api.getGuildChannels(id: guildID)).compactMap {
+          channel in
+          try? channel.result.get()
+        }
+
+        let channelNames = [String: String](
+          uniqueKeysWithValues: channels.compactMap { channel in
+            guard let name = channel.name else { return nil }
+            return (channel.id, name)
+          })
+
+        names = self.ctx.config.ignoredChannels.map { channelID in
+          channelNames[channelID] ?? channelID
+        }
+      } else {
+        names = Array(self.ctx.config.ignoredChannels)
+      }
+
+      let namesBlock =
+        names
+        .sorted()
+        .map { name in "\t\(name)" }
+        .joined(separator: "\n")
+      try await self.interaction.reply(
+        "Currently ignored channels:\n\(namesBlock)".codeBlocked(),
+        ephemeral: true
+      )
+    }
+  }
+
+  private func subcommandConfigWords(_ command: CommandData) async throws {
+    if let option = command.subOption(name: "add") {
+      let word: String = try option.getOption("word")
+      var config = self.ctx.config
+
+      guard !config.foodWords.contains(word) else {
+        try await self.interaction.reply(
+          "Word `\(word)` already in listen list".codeBlocked(),
+          ephemeral: true
+        )
+        return
+      }
+
+      guard config.foodWords.count < Self.maxFoodWords else {
+        throw ConfigCommandError("Maximum number of word added")
+      }
+
+      config.foodWords.append(word)
+      try await self.ctx.store.set(self.ctx.server, config: config)
+
+      try await self.interaction.reply(
+        "Added word `\(word)` to listen list",
+        ephemeral: true
+      )
+    } else if let option = command.subOption(name: "remove") {
+      let word: String = try option.getOption("word")
+      var config = self.ctx.config
+
+      guard config.foodWords.contains(word) else {
+        try await self.interaction.reply(
+          "Word `\(word)` is not in listen list".codeBlocked(),
+          ephemeral: true
+        )
+        return
+      }
+
+      config.foodWords.removeAll { foodWord in foodWord == word }
+      try await self.ctx.store.set(self.ctx.server, config: config)
+
+      try await self.interaction.reply(
+        "Removed word `\(word)` from listen list",
+        ephemeral: true
+      )
+    } else if command.subOption(name: "list") != nil {
+      let words = self.ctx.config.foodWords
+        .sorted()
+        .map { word in "\t\(word)" }
+        .joined(separator: "\n")
+      try await self.interaction.reply(
+        "Current words kevin sniffs for:\n\(words)".codeBlocked(),
+        ephemeral: true
+      )
     }
   }
 }

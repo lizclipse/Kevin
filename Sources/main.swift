@@ -61,7 +61,11 @@ actor App {
 
     self.bot.messageCreate.listen { message in
       guard let guildID = message.guildID else { return }
-      let ctx = await self.context(server: guildID)
+      let ctx: ExecutorContext
+      do { ctx = try await self.context(server: guildID) } catch {
+        self.logger.error("failed to load context: \(error.localizedDescription)")
+        return
+      }
       let executor = MessageExecutor(message: message, context: ctx)
       await executor.handleMessage()
     }
@@ -133,6 +137,29 @@ actor App {
           ) {
             ChannelOption("channel", description: "the channel to unignore", required: true)
           }
+
+          SubCommand(
+            "list", description: "list all the channels kevin is ignoring"
+          )
+        }
+
+        SubCommandGroup("words", description: "teach kevin what words mean food or not") {
+          SubCommand(
+            "add", description: "teach kevin a new food word that he should listen for"
+          ) {
+            StringOption("word", description: "the word to add to the listen list", required: true)
+          }
+
+          SubCommand(
+            "remove",
+            description: "eliminate all knowledge of a food word from kevins guinea pig brain"
+          ) {
+            StringOption(
+              "word", description: "the word to remove from the listen list", required: true
+            )
+          }
+
+          SubCommand("list", description: "list all of the food words kevin knows")
         }
       } handler: { interaction in
         await self.executeCommand(interaction) { executor in
@@ -146,7 +173,12 @@ actor App {
     _ interaction: CommandData,
     _ block: (_ executor: CommandExecutor) async throws -> Void
   ) async {
-    let ctx = await self.context(server: self.guildID)
+    guard let guildID = interaction.guildID else { return }
+    let ctx: ExecutorContext
+    do { ctx = try await self.context(server: guildID) } catch {
+      self.logger.error("failed to load context: \(error.localizedDescription)")
+      return
+    }
     let executor = CommandExecutor(interaction: interaction, context: ctx)
 
     do {
@@ -161,14 +193,14 @@ actor App {
     }
   }
 
-  private func context(server: Snowflake) async -> ExecutorContext {
+  private func context(server: Snowflake) async throws -> ExecutorContext {
     return ExecutorContext(
       server: server,
       store: self.store,
       bot: self.bot,
       api: self.api,
       rekog: self.rekog,
-      config: await self.store.get(server)
+      config: try await self.store.get(server)
     )
   }
 }
