@@ -6,7 +6,7 @@ import Logging
 func main() throws {
   let token = try String(contentsOfFile: "Config/token").trimmingCharacters(
     in: .whitespacesAndNewlines)
-  let guildId = try String(contentsOfFile: "Config/guild_id").trimmingCharacters(
+  let guildID = try String(contentsOfFile: "Config/guild_id").trimmingCharacters(
     in: .whitespacesAndNewlines)
 
   let storePath = URL(
@@ -18,7 +18,7 @@ func main() throws {
     let store = Store(path: storePath)
     try! await store.load()
 
-    let app = App(store: store, token: token, guildId: guildId)
+    let app = App(store: store, token: token, guildID: guildID)
     await app.run()
   }
   RunLoop.main.run()
@@ -33,12 +33,12 @@ actor App {
 
   let store: Store
   let token: String
-  let guildId: String
+  let guildID: String
 
-  init(store: Store, token: String, guildId: String) {
+  init(store: Store, token: String, guildID: String) {
     self.store = store
     self.token = token
-    self.guildId = guildId
+    self.guildID = guildID
   }
 
   func run() {
@@ -60,8 +60,8 @@ actor App {
     }
 
     self.bot.messageCreate.listen { message in
-      guard let guildId = message.guildID else { return }
-      let ctx = await self.context(server: guildId)
+      guard let guildID = message.guildID else { return }
+      let ctx = await self.context(server: guildID)
       let executor = MessageExecutor(message: message, context: ctx)
       await executor.handleMessage()
     }
@@ -70,7 +70,7 @@ actor App {
   }
 
   private func registerCommands() async throws {
-    try await self.bot.registerApplicationCommands(guild: self.guildId) { @Sendable in
+    try await self.bot.registerApplicationCommands(guild: self.guildID) { @Sendable in
       NewAppCommand("sleep", description: "tucks me into bed for a quick nap") { interaction in
         await self.executeCommand(interaction) { executor in
           try await executor.commandSleep()
@@ -146,7 +146,7 @@ actor App {
     _ interaction: CommandData,
     _ block: (_ executor: CommandExecutor) async throws -> Void
   ) async {
-    let ctx = await self.context(server: self.guildId)
+    let ctx = await self.context(server: self.guildID)
     let executor = CommandExecutor(interaction: interaction, context: ctx)
 
     do {
