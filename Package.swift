@@ -10,7 +10,7 @@ let package = Package(
   ],
   dependencies: [
     //        .package(url: "https://github.com/SwiftcordApp/DiscordKit", branch: "main"),
-    .package(path: "../../github/DiscordKit"),
+    .package(path: "../DiscordKit"),
     .package(url: "https://github.com/apple/swift-log.git", from: "1.6.0"),
     .package(url: "https://github.com/gonzalezreal/DefaultCodable.git", from: "1.2.1"),
   ],
