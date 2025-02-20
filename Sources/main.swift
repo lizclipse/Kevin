@@ -121,15 +121,18 @@ actor App {
       }
 
       NewAppCommand("config", description: "tell kevin what you want him to do") {
-        SubCommand(
-          "channel-ignore", description: "tell kevin that you want him to ignore a channel"
-        ) {
-          ChannelOption("channel", description: "the channel to ignore", required: true)
-        }
+        SubCommandGroup("channel", description: "manage where kevin is allowed to roam") {
+          SubCommand(
+            "ignore", description: "tell kevin that you want him to ignore a channel"
+          ) {
+            ChannelOption("channel", description: "the channel to ignore", required: true)
+          }
 
-        SubCommand("channel-unignore", description: "tell kevin that a channel is back on the menu")
-        {
-          ChannelOption("channel", description: "the channel to unignore", required: true)
+          SubCommand(
+            "unignore", description: "tell kevin that a channel is back on the menu"
+          ) {
+            ChannelOption("channel", description: "the channel to unignore", required: true)
+          }
         }
       } handler: { interaction in
         await self.executeCommand(interaction) { executor in

@@ -13,6 +13,24 @@ actor CommandExecutor {
     self.ctx = context
   }
 
+  private func checkAwake() async -> Bool {
+    guard !self.ctx.config.awake else { return true }
+
+    do {
+      try await self.asleepRespond()
+    } catch {
+      self.logger.error("failed to send sleeping message", source: error.localizedDescription)
+    }
+
+    return false
+  }
+
+  private func asleepRespond() async throws {
+    try await self.interaction.reply(asleepMsgs.randomElement()!)
+  }
+}
+
+extension CommandExecutor {
   func commandSleep() async throws {
     guard await self.checkAwake() else { return }
 
@@ -22,7 +40,9 @@ actor CommandExecutor {
 
     try await self.interaction.reply(sleepMsgs.randomElement()!)
   }
+}
 
+extension CommandExecutor {
   func commandWake() async throws {
     guard !self.ctx.config.awake else {
       try await self.interaction.reply(awakeMsgs.randomElement()!)
@@ -35,13 +55,17 @@ actor CommandExecutor {
 
     try await self.interaction.reply(wakeMsgs.randomElement()!)
   }
+}
 
+extension CommandExecutor {
   func commandGay() async throws {
     guard await self.checkAwake() else { return }
 
     try await self.interaction.reply(gayFlag)
   }
+}
 
+extension CommandExecutor {
   func commandSlap(target: String?, delay: Double?) async throws {
     guard await self.checkAwake() else { return }
 
@@ -56,13 +80,17 @@ actor CommandExecutor {
       try await self.interaction.reply(pokeMsgs.randomElement()!)
     }
   }
+}
 
+extension CommandExecutor {
   func commandPet() async throws {
     guard await self.checkAwake() else { return }
 
     try await self.interaction.reply(petMsgs.randomElement()!)
   }
+}
 
+extension CommandExecutor {
   func commandPp() async throws {
     guard await self.checkAwake() else { return }
 
@@ -76,10 +104,18 @@ actor CommandExecutor {
       try await self.interaction.reply("pls select a command dingus")
     }
   }
+}
 
+extension CommandExecutor {
   func commandConfig() async throws {
+    if let group = self.interaction.subGroup(name: "channel") {
+      try await self.subcommandConfigChannel(command: group)
+    }
+  }
+
+  private func subcommandConfigChannel(command: CommandData) async throws {
     // config channel-ignore
-    if let option = self.interaction.subOption(name: "channel-ignore") {
+    if let option = command.subOption(name: "ignore") {
       let channel: String = try option.getOption("channel")
 
       guard !self.ctx.config.ignoredChannels.contains(channel) else {
@@ -97,7 +133,7 @@ actor CommandExecutor {
       try await self.interaction.reply("Added channel ID \(channel) to ignore list".codeBlocked())
 
       // config channel-unignore
-    } else if let option = self.interaction.subOption(name: "channel-unignore") {
+    } else if let option = command.subOption(name: "unignore") {
       let channel: String = try option.getOption("channel")
 
       guard self.ctx.config.ignoredChannels.contains(channel) else {
@@ -115,22 +151,6 @@ actor CommandExecutor {
       try await self.interaction.reply(
         "Removed channel ID \(channel) from ignore list".codeBlocked())
     }
-  }
-
-  private func checkAwake() async -> Bool {
-    guard !self.ctx.config.awake else { return true }
-
-    do {
-      try await self.asleepRespond()
-    } catch {
-      self.logger.error("failed to send sleeping message", source: error.localizedDescription)
-    }
-
-    return false
-  }
-
-  private func asleepRespond() async throws {
-    try await self.interaction.reply(asleepMsgs.randomElement()!)
   }
 }
 
