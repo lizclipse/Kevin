@@ -83,6 +83,6 @@ extension [String] {
       self
         .map { word in NSRegularExpression.escapedPattern(for: word) }
         .joined(separator: "|")
-    )
+    ).ignoresCase()
   }
 }
